@@ -1,0 +1,16 @@
+(() => {
+const cfg=window.VIVID_FLOW_CONFIG||{},ready=!!(window.supabase&&cfg.supabaseUrl&&cfg.supabaseAnonKey);
+const db=ready?window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey):null;
+const $=id=>document.getElementById(id);$('year').textContent=new Date().getFullYear();
+if(cfg.email&&!cfg.email.startsWith('YOUR_'))$('emailLink').href='mailto:'+cfg.email;
+$('menu').onclick=()=>document.querySelector('.nav nav').classList.toggle('open');
+const grid=$('gallery');let projects=[];
+const url=s=>{try{let u=new URL(s,location.href);return ['http:','https:'].includes(u.protocol)?u.href:'#'}catch{return '#'}};
+function render(filter='All'){grid.replaceChildren();let list=projects.filter(p=>filter==='All'||p.category===filter);$('empty').hidden=list.length>0;grid.hidden=!list.length;
+if(!list.length)return;list.forEach((p,i)=>{let card=document.createElement('article');card.className='project';card.style.animationDelay=i*70+'ms';let visual=document.createElement('div');visual.className='visual';
+if(p.thumbnail_url){let im=document.createElement('img');im.src=url(p.thumbnail_url);im.alt=p.title;im.loading='lazy';visual.append(im)}else if(p.media_type==='image'){let im=document.createElement('img');im.src=url(p.media_url);im.alt=p.title;im.loading='lazy';visual.append(im)}else{let ph=document.createElement('div');ph.className='placeholder';ph.textContent='✳';visual.append(ph)}
+let meta=document.createElement('div');meta.className='project-meta';let left=document.createElement('div'),h=document.createElement('h3'),cat=document.createElement('p'),year=document.createElement('small');h.textContent=p.title;cat.textContent=p.category;year.textContent=p.year||'V·F';left.append(h,cat);meta.append(left,year);card.append(visual,meta);card.onclick=()=>{let v=$('viewer'),c=$('viewerContent');c.replaceChildren();if(p.media_url){let media=document.createElement(p.media_type==='video'?'video':'img');media.src=url(p.media_url);if(p.media_type==='video'){media.controls=true;media.autoplay=true;media.playsInline=true}c.append(media)}$('viewerCaption').textContent=[p.title,p.description].filter(Boolean).join(' — ');v.classList.add('open')};grid.append(card)})}
+$('filters').onclick=e=>{let b=e.target.closest('[data-filter]');if(!b)return;document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x===b));render(b.dataset.filter)};
+$('closeViewer').onclick=()=>{$('viewer').classList.remove('open');let v=$('viewer video');if(v)v.pause()};$('viewer').onclick=e=>{if(e.target.id==='viewer')$('viewer').classList.remove('open')};window.addEventListener('keydown',e=>{if(e.key==='Escape')$('viewer').classList.remove('open')});
+async function load(){if(!db){grid.innerHTML='<div class="loading">Portfolio database setup is needed before projects can be displayed. See README.md.</div>';return}let {data,error}=await db.from('projects').select('*').eq('published',true).order('sort_order').order('created_at',{ascending:false});if(error){grid.innerHTML='<div class="loading">Could not load projects. Check Supabase setup.</div>';console.error(error);return}projects=data||[];render()}load();
+})();
